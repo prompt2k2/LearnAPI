@@ -43,13 +43,13 @@ post_db = [{"title": "Post", "content": "Aye o pe meji", "id": 3}, {
 
 
 def load_post_id(id):
-    for p in post_db:
+    for p in cursor:
         if p["id"] == id:
             return p
 
 
 def find_index_post(id):
-    for i, p in enumerate(post_db):
+    for i, p in enumerate(cursor):
         if p['id'] == id:
             return i  # returns the index of the post
 
@@ -62,29 +62,32 @@ async def read_root():
 @app.get("/posts")
 def get_posts():
     cursor.execute("""SELECT * FROM public."Post" """)
-    p = cursor.fetchall()
-
-    print(p)
-    
-    return {"data": p}
+    posts = cursor.fetchall()
+    return {"data": posts}
 
 
 # creates an entry to the post_db array
 @app.post("/createpost", status_code=status.HTTP_201_CREATED)
-def create_posts(post: Post):  # receive post content
-    post_dict = post.dict()
-    post_dict['id'] = randrange(0, 100000000)
-    post_db.append(post_dict)
-    # post_db.append(post.dict())
-    return {"result": post_dict}
+def create_posts(po: Post):  # receive post content
+    cursor.execute("""INSERT INTO public."Post" (title, content, published) VALUES (%s, %s, %s) RETURNING * """,
+                   (po.title, po.content, po.published))
+
+    new_post = cursor.fetchall()
+
+    conn.commit()  # save to Database
+
+    return {"result": new_post}
 
 
 @app.get("/posts/{id}")
-def get_single(id: int, response: Response):  # converts the id to interger type
-    single_post = load_post_id(id)
+def get_single(id: int):  # converts the id to interger type
+    cursor.execute(
+        """SELECT * from public."Post" WHERE id = %s """, (str(id), ))
+    single_post = cursor.fetchone()
+
     if not single_post:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
-                            message="Item with id {id} not found")
+                            details=f"Item with id: {id} not found")
         # response.status_code = status.HTTP_404_NOT_FOUND
         # return {"message":f"Item with id {id} not found"}
     return{"data_detail": single_post}
