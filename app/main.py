@@ -1,9 +1,12 @@
-from re import I
 from fastapi import FastAPI, Response, status, HTTPException
 from fastapi.params import Body
 from pydantic import BaseModel
 from typing import Optional
 from random import randrange
+import psycopg2
+import time
+from psycopg2.extras import RealDictCursor
+
 
 app = FastAPI()
 
@@ -12,7 +15,27 @@ class Post(BaseModel):
     title: str  # expected input type
     content: str
     published: bool = True
-    rating: Optional[int] = None
+
+
+# to connect to actual DB install psycopg2 first
+while True:  # checks if connection is successful
+    try:
+        conn = psycopg2.connect("dbname=FastAPI user=admin password=admin")
+        cursor = conn.cursor()
+        print("######################################")
+        print("#   Database Connection Successful    #")
+        print("######################################")
+        break  # break the while. continues program is connection is successful else retries connection
+
+    except Exception as error:
+        print("######################################")
+        print("#    Connection to Database failed   #")
+        print("######################################")
+        print("Error: ", error)
+        print("######################################")
+
+        print("trying again...")
+        time.sleep(5)  # retry connection after 5 seconds
 
 
 post_db = [{"title": "Post", "content": "Aye o pe meji", "id": 3}, {
@@ -38,7 +61,12 @@ async def read_root():
 
 @app.get("/posts")
 def get_posts():
-    return {"data": post_db}
+    cursor.execute("""SELECT * FROM public."Post" """)
+    p = cursor.fetchall()
+
+    print(p)
+    
+    return {"data": p}
 
 
 # creates an entry to the post_db array
