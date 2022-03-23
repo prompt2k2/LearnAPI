@@ -6,6 +6,8 @@ from random import randrange
 import psycopg2
 import time
 from psycopg2.extras import RealDictCursor
+from . import mmodels
+from .database import engine
 
 
 app = FastAPI()
