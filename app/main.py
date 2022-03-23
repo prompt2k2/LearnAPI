@@ -11,7 +11,7 @@ from psycopg2.extras import RealDictCursor
 app = FastAPI()
 
 
-class Post(BaseModel):
+class Products(BaseModel):
     title: str  # expected input type
     content: str
     published: bool = True
@@ -20,10 +20,10 @@ class Post(BaseModel):
 # to connect to actual DB install psycopg2 first
 while True:  # checks if connection is successful
     try:
-        conn = psycopg2.connect("dbname=FastAPI user=admin password=admin")
+        conn = psycopg2.connect("dbname=postgres user=postgres password=admin")
         cursor = conn.cursor()
         print("######################################")
-        print("#   Database Connection Successful    #")
+        print("#   Database Connection Successful   #")
         print("######################################")
         break  # break the while. continues program is connection is successful else retries connection
 
@@ -61,60 +61,56 @@ async def read_root():
 
 @app.get("/posts")
 def get_posts():
-    cursor.execute("""SELECT * FROM public."Post" """)
-    posts = cursor.fetchall()
-    return {"data": posts}
+    cursor.execute("""SELECT * FROM public."Products" """)
+    product = cursor.fetchall()
+    return {"data": product}
 
 
 # creates an entry to the post_db array
 @app.post("/createpost", status_code=status.HTTP_201_CREATED)
-def create_posts(po: Post):  # receive post content
-    cursor.execute("""INSERT INTO public."Post" (title, content, published) VALUES (%s, %s, %s) RETURNING * """,
+def create_posts(po: Products):  # receive post content from the defined BaseModel
+    cursor.execute("""INSERT INTO public."Products" (title, content, published) VALUES (%s, %s, %s) RETURNING * """,
                    (po.title, po.content, po.published))
 
-    new_post = cursor.fetchall()
-
+    new_product = cursor.fetchall()
     conn.commit()  # save to Database
-
-    return {"result": new_post}
+    return {"result": new_product}
 
 
 @app.get("/posts/{id}")
 def get_single(id: int):  # converts the id to interger type
     cursor.execute(
-        """SELECT * from public."Post" WHERE id = %s """, (str(id), ))
-    single_post = cursor.fetchone()
+        """SELECT * from public."Products" WHERE id = %s """, (str(id), ))
+    product = cursor.fetchone()
 
-    if not single_post:
+    if not product:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
-                            details=f"Item with id: {id} not found")
-        # response.status_code = status.HTTP_404_NOT_FOUND
-        # return {"message":f"Item with id {id} not found"}
-    return{"data_detail": single_post}
+                            detail =f"Item with id: {id} not found o")
+    return{"data_detail": product}
 
 
-@app.delete("/posts/{id}", status_code=status.HTTP_204_NO_CONTENT)
+@app.delete("/posts/{id}", status_code=status.HTTP_202_ACCEPTED)
 def delete_post(id: int):
-    index = find_index_post(id)
+    cursor.execute(
+        """DELETE FROM public."Products" WHERE id = %s RETURNING * """, (str(id), ))
+    deleted_product = cursor.fetchall()
+    conn.commit()
 
-    if index == None:
+    if deleted_product == None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=f"No post with id {id}")
 
-    post_db.pop(index)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @app.put("/posts/{id}", status_code=status.HTTP_202_ACCEPTED)
-def update_post(id: int, post: Post):  # makes sure the update follows the POST schema
-    index = find_index_post(id)
+def update_post(id: int, post: Products):  # makes sure the update follows the POST schema
+    cursor.execute("""UPDATE public."Products" SET title = %s, content = %s, published = %s WHERE id = %s RETURNING * """, (post.title, post.content, post.published, str(id),))
+    updated_product = cursor.fetchone()
+    conn.commit()
 
-    if index == None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
-                            message=f"No post with id {id}")
+    if updated_product == None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Not product with that Id, {id}")
+        #                     
 
-    post_dict = post.dict()
-    post_dict['id'] = id
-    post_db[index] = post_dict
-
-    return {"data": post_dict}
+    return {"data": updated_product}
