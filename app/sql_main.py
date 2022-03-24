@@ -10,16 +10,15 @@ from . import models
 from .database import engine, SessionLocal, get_db
 from sqlalchemy.orm import Session
 
-
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
-class Post(BaseModel):
+class Products(BaseModel):
     title: str  # expected input type
     content: str
-    published: bool
-    owner: str
+    published: bool = True
+
 
 # to connect to actual DB install psycopg2 first
 while True:  # checks if connection is successful
@@ -40,6 +39,10 @@ while True:  # checks if connection is successful
 
         print("trying again...")
         time.sleep(5)  # retry connection after 5 seconds
+
+
+post_db = [{"title": "Post", "content": "Aye o pe meji", "id": 3}, {
+    "title": "About food", "content": "I love Egusi soup", "id": 6}]
 
 
 def load_post_id(id):
@@ -67,58 +70,57 @@ async def read_root():
 
 
 @app.get("/posts")
-def get_posts(db: Session = Depends(get_db)):
+def get_posts():
+    cursor.execute("""SELECT * FROM public."Products" """)
+    product = cursor.fetchall()
+    return {"data": product}
 
-    posts = db.query(models.Post).all()
-    return {"data": posts}
 
-
+# creates an entry to the post_db array
 @app.post("/createpost", status_code=status.HTTP_201_CREATED)
-def create_posts(post: Post, db: Session = Depends(get_db)):  # receive post content from the defined BaseModel
-    #new_post = models.Post(title=post.title, content=post.content, published=post.published, owner=post.owner) replace this with models.Post(**post.dict())
-    new_post = models.Post(**post.dict())
-    db.add(new_post)
-    db.commit()
-    db.refresh(new_post)
-    
-    return {"result": new_post}
+def create_posts(po: Products):  # receive post content from the defined BaseModel
+    cursor.execute("""INSERT INTO public."Products" (title, content, published) VALUES (%s, %s, %s) RETURNING * """,
+                   (po.title, po.content, po.published))
+
+    new_product = cursor.fetchall()
+    conn.commit()  # save to Database
+    return {"result": new_product}
 
 
 @app.get("/posts/{id}")
-def get_single(id: int, db: Session = Depends(get_db)):  # converts the id to interger type
-    post = db.query(models.Post).get(id)
+def get_single(id: int):  # converts the id to interger type
+    cursor.execute(
+        """SELECT * from public."Products" WHERE id = %s """, (str(id), ))
+    product = cursor.fetchone()
 
-    if not post:
+    if not product:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                             detail =f"Item with id: {id} not found o")
-    return{"data_detail": post}
+    return{"data_detail": product}
 
 
 @app.delete("/posts/{id}", status_code=status.HTTP_202_ACCEPTED)
-def delete_post(id: int, db: Session = Depends(get_db)):
-    post = db.query(models.Post).get(id)
-        
-    if post == None:
+def delete_post(id: int):
+    cursor.execute(
+        """DELETE FROM public."Products" WHERE id = %s RETURNING * """, (str(id), ))
+    deleted_product = cursor.fetchall()
+    conn.commit()
+
+    if deleted_product == None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=f"No post with id {id}")
-    db.delete(post)    
-    db.commit()
 
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @app.put("/posts/{id}", status_code=status.HTTP_202_ACCEPTED)
-def update_post(id: int, db: Session = Depends(get_db)):  # makes sure the update follows the POST schema
-    
-    #post_query = db.query(models.Post).filter(models.Post.id ==id) #use instead of get(id) for research purposes
-    post = db.query(models.Post).get(id).dict()
-    #post = post_query.first()
-    
-    if post == None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"No post with that Id, {id}")
-    
-    db.update(post, synchronize_session=False)   
-    db.commit()     
-    print(post)            
+def update_post(id: int, post: Products):  # makes sure the update follows the POST schema
+    cursor.execute("""UPDATE public."Products" SET title = %s, content = %s, published = %s WHERE id = %s RETURNING * """, (post.title, post.content, post.published, str(id),))
+    updated_product = cursor.fetchone()
+    conn.commit()
 
-    return {"data": post}
+    if updated_product == None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Not product with that Id, {id}")
+        #                     
+
+    return {"data": updated_product}
