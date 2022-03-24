@@ -1,3 +1,4 @@
+from multiprocessing import synchronize
 from fastapi import FastAPI, Response, status, Depends, HTTPException
 from fastapi.params import Body
 from pydantic import BaseModel
@@ -94,7 +95,7 @@ def get_single(id: int, db: Session = Depends(get_db)):  # converts the id to in
     return{"data_detail": post}
 
 
-@app.delete("/posts/{id}", status_code=status.HTTP_202_ACCEPTED)
+@app.delete("/posts/{id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_post(id: int, db: Session = Depends(get_db)):
     post = db.query(models.Post).get(id)
         
@@ -104,21 +105,19 @@ def delete_post(id: int, db: Session = Depends(get_db)):
     db.delete(post)    
     db.commit()
 
-    return Response(status_code=status.HTTP_204_NO_CONTENT)
+    return {"message": f"Post with id {id} successfully deleted"}
 
 
 @app.put("/posts/{id}", status_code=status.HTTP_202_ACCEPTED)
-def update_post(id: int, db: Session = Depends(get_db)):  # makes sure the update follows the POST schema
+def update_post(id: int, u_post: Post, db: Session = Depends(get_db)):  # makes sure the update follows the POST schema
     
-    #post_query = db.query(models.Post).filter(models.Post.id ==id) #use instead of get(id) for research purposes
-    post = db.query(models.Post).get(id).dict()
-    #post = post_query.first()
-    
+    post_q = db.query(models.Post).filter(models.Post.id == id)
+    post = post_q.first() 
     if post == None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"No post with that Id, {id}")
     
-    db.update(post, synchronize_session=False)   
+    post_q.update(u_post.dict(), synchronize_session=False)   
     db.commit()     
-    print(post)            
+    print(u_post)            
 
-    return {"data": post}
+    return {"data": u_post}
