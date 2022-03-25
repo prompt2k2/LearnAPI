@@ -1,8 +1,8 @@
 from multiprocessing import synchronize
 from fastapi import FastAPI, Response, status, Depends, HTTPException
 from fastapi.params import Body
-from pydantic import BaseModel
-from typing import Optional
+from .schemas import Post, PostResponse, User, UserResponse
+from typing import Optional, List
 from random import randrange
 import psycopg2
 import time
@@ -16,11 +16,6 @@ models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
-class Post(BaseModel):
-    title: str  # expected input type
-    content: str
-    published: bool
-    owner: str
 
 # to connect to actual DB install psycopg2 first
 while True:  # checks if connection is successful
@@ -43,38 +38,19 @@ while True:  # checks if connection is successful
         time.sleep(5)  # retry connection after 5 seconds
 
 
-def load_post_id(id):
-    for p in cursor:
-        if p["id"] == id:
-            return p
-
-
-def find_index_post(id):
-    for i, p in enumerate(cursor):
-        if p['id'] == id:
-            return i  # returns the index of the post
-
-#Testing Session with SQLALCHEMY which automatically created the table in db
-@app.get("/sqlalchemy")
-def test_posts(db: Session = Depends(get_db)):
-    
-    post = db.query(models.Post).all()
-    return {"data": post}
-
-
 @app.get("/")
 async def read_root():
     return {"Hello James, Welcome to the Games of Throne"}
 
 
-@app.get("/posts")
+@app.get("/posts", response_model = List[PostResponse]) #List ensure the retiurn of response in List format
 def get_posts(db: Session = Depends(get_db)):
 
     posts = db.query(models.Post).all()
-    return {"data": posts}
+    return posts
 
 
-@app.post("/createpost", status_code=status.HTTP_201_CREATED)
+@app.post("/createpost", status_code=status.HTTP_201_CREATED, response_model=PostResponse)
 def create_posts(post: Post, db: Session = Depends(get_db)):  # receive post content from the defined BaseModel
     #new_post = models.Post(title=post.title, content=post.content, published=post.published, owner=post.owner) replace this with models.Post(**post.dict())
     new_post = models.Post(**post.dict())
@@ -82,7 +58,7 @@ def create_posts(post: Post, db: Session = Depends(get_db)):  # receive post con
     db.commit()
     db.refresh(new_post)
     
-    return {"result": new_post}
+    return new_post
 
 
 @app.get("/posts/{id}")
@@ -92,7 +68,7 @@ def get_single(id: int, db: Session = Depends(get_db)):  # converts the id to in
     if not post:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                             detail =f"Item with id: {id} not found o")
-    return{"data_detail": post}
+    return post
 
 
 @app.delete("/posts/{id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -118,6 +94,23 @@ def update_post(id: int, u_post: Post, db: Session = Depends(get_db)):  # makes 
     
     post_q.update(u_post.dict(), synchronize_session=False)   
     db.commit()     
-    print(u_post)            
 
-    return {"data": u_post}
+    return u_post
+
+
+@app.post("/createuser", status_code=201, response_model = UserResponse)
+def create_user(c_user: User, db: Session = Depends(get_db)):  # receive post content from the defined BaseModel
+    
+    new_user = models.User(**c_user.dict())
+    
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+    
+    return new_user
+    
+
+
+    
+    
+    

@@ -12,3 +12,15 @@ class Post(Base):
     published = Column(Boolean, server_default='True')
     owner = Column(String, nullable=False)
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text('now()'))
+    
+    
+class User(Base):
+    __tablename__ = 'users'
+    
+    id = Column(Integer, nullable=False, primary_key=True)
+    email = Column(String, nullable=False, unique=True)
+    first_name = Column(String, nullable=False)
+    last_name = Column(String, nullable=False)
+    username = Column(String, nullable=False, unique=True)
+    password = Column(String, nullable=False)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text('now()'))
