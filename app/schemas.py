@@ -1,5 +1,6 @@
 from pydantic import BaseModel, EmailStr
 from datetime import datetime
+from typing import Optional
 
 
 #This is the pydantic model:defines the structure of a request & response
@@ -8,11 +9,12 @@ class Post(BaseModel):
     title: str  # expected input type
     content: str
     published: bool
-    owner: str
     
 
 class PostResponse(Post): #Manages the response sent as output
     id: int
+    created_at: datetime
+    owner_id: int
     class Config:
         orm_mode = True
         
@@ -37,4 +39,14 @@ class UserResponse(BaseModel):
 class UserLogin(BaseModel):
     username: str
     password: str
+    
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+    
+
+class TokenData(BaseModel):
+    id: Optional[int] = None
+    
     

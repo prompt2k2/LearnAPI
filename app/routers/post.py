@@ -10,6 +10,7 @@ from app import models
 from app.database import engine, SessionLocal, get_db
 from sqlalchemy.orm import Session
 from app import models, schemas, utils
+from . import auth
 
 
 router = APIRouter(tags=['Posts'])
@@ -22,9 +23,9 @@ def get_posts(db: Session = Depends(get_db)):
 
 
 @router.post("/createpost", status_code=status.HTTP_201_CREATED, response_model=PostResponse)
-def create_posts(post: Post, db: Session = Depends(get_db)):  # receive post content from the defined BaseModel
+def create_posts(post: Post, db: Session = Depends(get_db), get_current_user:int = Depends(auth.get_current_user)):  # receive post content from the defined BaseModel
     #new_post = models.Post(title=post.title, content=post.content, published=post.published, owner=post.owner) replace this with models.Post(**post.dict())
-    new_post = models.Post(**post.dict())
+    new_post = models.Post(owner_id=get_current_user.id, **post.dict())
     db.add(new_post)
     db.commit()
     db.refresh(new_post)
@@ -33,7 +34,7 @@ def create_posts(post: Post, db: Session = Depends(get_db)):  # receive post con
 
 
 @router.get("/posts/{id}")
-def get_single(id: int, db: Session = Depends(get_db)):  # converts the id to interger type
+def get_single(id: int, db: Session = Depends(get_db), get_current_user:int = Depends(auth.get_current_user)):  # converts the id to interger type
     post = db.query(models.Post).get(id)
 
     if not post:
@@ -43,12 +44,18 @@ def get_single(id: int, db: Session = Depends(get_db)):  # converts the id to in
 
 
 @router.delete("/posts/{id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_post(id: int, db: Session = Depends(get_db)):
+def delete_post(id: int, db: Session = Depends(get_db), get_current_user:int = Depends(auth.get_current_user)):
     post = db.query(models.Post).get(id)
         
     if post == None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=f"No post with id {id}")
+        
+    if post.owner_id != get_current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, 
+            detail=f"You are not authorize for this action"
+        )
     db.delete(post)    
     db.commit()
 
@@ -56,13 +63,19 @@ def delete_post(id: int, db: Session = Depends(get_db)):
 
 
 @router.put("/posts/{id}", status_code=status.HTTP_202_ACCEPTED)
-def update_post(id: int, u_post: Post, db: Session = Depends(get_db)):  # makes sure the update follows the POST schema
+def update_post(id: int, u_post: Post, db: Session = Depends(get_db), get_current_user:int = Depends(auth.get_current_user)):  # makes sure the update follows the POST schema
     
     post_q = db.query(models.Post).filter(models.Post.id == id)
     post = post_q.first() 
+
     if post == None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"No post with that Id, {id}")
     
+    if post.owner_id != get_current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, 
+            detail=f"You are not authorize for this action"
+        )
     post_q.update(u_post.dict(), synchronize_session=False)   
     db.commit()     
 
