@@ -5,20 +5,6 @@ from typing import Optional
 
 #This is the pydantic model:defines the structure of a request & response
 #ensures that a created or updated post has this (required) fields
-class Post(BaseModel):
-    title: str  # expected input type
-    content: str
-    published: bool
-    
-
-class PostResponse(Post): #Manages the response sent as output
-    id: int
-    created_at: datetime
-    owner_id: int
-    class Config:
-        orm_mode = True
-        
-
 class User(BaseModel):
     email: EmailStr
     first_name: str
@@ -48,5 +34,24 @@ class Token(BaseModel):
 
 class TokenData(BaseModel):
     id: Optional[int] = None
+
+class Post(BaseModel):
+    title: str  # expected input type
+    content: str
+    published: bool
+    
+    
+
+class PostResponse(Post): #Manages the response sent as output
+    id: int
+    created_at: datetime
+    owner_id: int
+    owner: UserResponse
+    
+    class Config:
+        orm_mode = True
+        
+
+
     
     

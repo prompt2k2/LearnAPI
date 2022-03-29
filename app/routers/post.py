@@ -16,11 +16,18 @@ from . import auth
 router = APIRouter(tags=['Posts'])
 
 @router.get("/posts", response_model = List[PostResponse]) #List ensure the retiurn of response in List format
-def get_posts(db: Session = Depends(get_db)):
+def get_posts(db: Session = Depends(get_db), search: Optional[str] = " " , limit: int = 10, skip: int = 0): #0 means not skipping any by default
 
-    posts = db.query(models.Post).all()
+    posts = db.query(models.Post).filter(models.Post.title.contains(search)).limit(limit).offset(skip).all() #offset use to skip post (pagination)
     return posts
 
+
+@router.get("/myposts", response_model = List[PostResponse]) #List ensure the retiurn of response in List format
+def get_myposts(db: Session = Depends(get_db), get_current_user:int = Depends(auth.get_current_user)):
+
+    posts = db.query(models.Post).filter(models.Post.owner_id == get_current_user.id).all()
+    
+    return posts
 
 @router.post("/createpost", status_code=status.HTTP_201_CREATED, response_model=PostResponse)
 def create_posts(post: Post, db: Session = Depends(get_db), get_current_user:int = Depends(auth.get_current_user)):  # receive post content from the defined BaseModel
@@ -33,13 +40,20 @@ def create_posts(post: Post, db: Session = Depends(get_db), get_current_user:int
     return new_post
 
 
-@router.get("/posts/{id}")
+@router.get("/posts/{id}", response_model = PostResponse)
 def get_single(id: int, db: Session = Depends(get_db), get_current_user:int = Depends(auth.get_current_user)):  # converts the id to interger type
     post = db.query(models.Post).get(id)
 
     if not post:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                             detail =f"Item with id: {id} not found o")
+    
+    if post.owner_id != get_current_user.id:
+            raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, 
+            detail=f"You are not authorize for this action"
+        )
+    
     return post
 
 

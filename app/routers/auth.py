@@ -8,6 +8,7 @@ from app import models
 from app.utils import verify
 from jose import JWTError, jwt
 from datetime import datetime,timedelta
+from app.config import settings
 
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl='login') #points to the login url
@@ -18,9 +19,9 @@ router = APIRouter(tags = ['Authentication'])
 #TOKEN CREATION
 #SECRET_KEY, #ALGORITHM, #EXPIRATION TIME
 
-SECRET_KEY = "myproblemisthatitoosabi,andyouwahalaisthatyounosabi.thankyoutoburnaboy"
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTE = 120
+SECRET_KEY = settings.secret_key
+ALGORITHM = settings.algorithm
+ACCESS_TOKEN_EXPIRE_MINUTE = settings.ACCESS_TOKEN_EXPIRE_MINUTE
 
 def create_access_token(data:dict):
     to_encode = data.copy()
