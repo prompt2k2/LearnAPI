@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, conint
 from datetime import datetime
 from typing import Optional
 
@@ -52,6 +52,7 @@ class PostResponse(Post): #Manages the response sent as output
         orm_mode = True
         
 
-
-    
+class Vote(BaseModel):
+    post_id: int
+    dir: conint(le=1) #Direction to show if liking on unliking/ le means less than or equal to
     
