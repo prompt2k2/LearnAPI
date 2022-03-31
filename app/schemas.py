@@ -56,3 +56,10 @@ class Vote(BaseModel):
     post_id: int
     dir: conint(le=1) #Direction to show if liking on unliking/ le means less than or equal to
     
+    
+class VoteResponse(BaseModel):
+    Post: PostResponse
+    votes: int
+    
+    class Config:
+        orm_mode = True
